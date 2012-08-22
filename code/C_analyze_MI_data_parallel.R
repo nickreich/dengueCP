@@ -181,24 +181,30 @@ N.fits.reps <- cbind(N.fits.all[,"N.fit.N"],
 		     N.fits.all[,"N.fits.exp"], N.fits.all[,"N.fits.exp"], N.fits.all[,"N.fits.exp"], N.fits.all[,"N.fits.exp"])
 stable.data <- N.fits.exp == N.fits.all[,"N.fit.Ns"]
 
-## summarize model GOF results
+##################################
+## summarize model GOF results  ##
+##################################
+
+## number of coefficients in models a->d + 1 for estimated variance
 n.mod.params <- c(3, 7, 29, 106)
-DFs <- matrix(c(3, n.mod.params+DF*4, n.mod.params+DF*4+1), byrow=TRUE, nrow=n.files, ncol=9)  ## NOT RIGHT BECAUSE OF DF IN SMOOTH SPLINE
+
+## multiplying DF (for smooth spline) by 4 b/c splines fit for each of 4 serotypes
+## adding 1 in third c()'d value for lambda parameter
+DFs <- matrix(c(3, n.mod.params+DF*4, n.mod.params+DF*4+1), byrow=TRUE, nrow=n.files, ncol=9)
 BICs <- -2*final.logliks + DFs*log(N.fits.reps)
+AICs <- -2*final.logliks + 2*DFs
 final.loglik.diffs <- (final.logliks-final.logliks[,1])/(2*DFs)
-colnames(final.loglik.diffs) <- c("N", "Na", "Nb", "Nc", "Nd", "Ea", "Eb", "Ec", "Ed")
-rownames(final.loglik.diffs) <- paste("dataset", 1:n.files)
+colnames(AICs) <- c("N", "Na", "Nb", "Nc", "Nd", "Ea", "Eb", "Ec", "Ed")
+rownames(AICs) <- paste("dataset", 1:n.files)
 
 best.mods <- best.idx <- rep(NA, n.files)
 for(i in 1:n.files) {
 	n.mod <- ncol(final.logliks)
-	## choose best model as N if no final.loglik.diff>1, else chose the highest
-	best.idx[i] <- ifelse(max(final.loglik.diffs[i,])<1,
-			   1,
-			   which(final.loglik.diffs[i,]==max(final.loglik.diffs[i,])))
-	best.mods[i] <- colnames(final.loglik.diffs)[best.idx[i]]
+	## choose best model as one with lowest AIC.
+	best.idx[i] <- which( AICs[i,] == min(AICs[i,]) )
+	best.mods[i] <- colnames(AICs)[best.idx[i]]
 }
-final.loglik.mods <- data.frame(round(final.loglik.diffs, 1), best.mods)
+final.loglik.mods <- data.frame(round(AICs, 1), best.mods)
 
 good.idx <- which(final.logliks[,1]<0)
 
@@ -259,8 +265,8 @@ for(j in 1:n.files){
 }
 chosen.ests.final <- data.frame(model=best.mods, chosen.ests)
 
-write.csv(chosen.ests.final, file="../../data/chosenEsts_MIsims5.csv", row.names=F)
-write.csv(correctModel.ests, file="../../data/correctEsts_MIsims5.csv", row.names=F)
+write.csv(chosen.ests.final, file="../../data/chosenEsts_MIsims5_June2012.csv", row.names=F)
+write.csv(correctModel.ests, file="../../data/correctEsts_MIsims5_June2012.csv", row.names=F)
 
 
 ## ENDED HERE

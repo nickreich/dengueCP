@@ -6,7 +6,7 @@ library(ggplot2)
 
 ## starting from scratch
 n.files <- 12000
-chosen.ests.final <- read.csv("../../data/chosenEsts_MIsims5.csv")
+chosen.ests.final <- read.csv("../../data/chosenEsts_MIsims5_June2012.csv")
 key <- read.csv("../../data/simulatedData_fromMI/key_5.csv", row.names=1)
 true.lambdas <- 1/key[,"delta"]
 
@@ -102,16 +102,18 @@ for(i in 1:nrow(means)){
 					 "E, 10%" = 2)
 }
 subparam.cats.ordered <- reorder(subparam.cats, subparam.cats.level)
-means <- cbind(means, true.means, subparam.cats, true.lambdas.verb)
+true.lambdas.verb <- reorder(true.lambdas.verb, true.means)
+means <- cbind(means, true.means, subparam.cats.ordered, true.lambdas.verb)
+chosen.ests.final$subparam.cats.ordered <- subparam.cats.ordered
 
 
 ## plot histograms
-qplot(lambda/26, data=chosen.ests.final, geom="histogram") + facet_grid(subparam.cats ~ true.lambdas.verb) + theme_bw() + geom_vline(aes(xintercept=mean.ests), means, col="blue") + geom_vline(aes(xintercept=true.means), means, col="red") + xlab("average duration of cross protection")
+qplot(lambda/26, data=chosen.ests.final, geom="histogram") + facet_grid(subparam.cats.ordered ~ true.lambdas.verb) + theme_bw() + geom_vline(aes(xintercept=mean.ests), means, col="blue") + geom_vline(aes(xintercept=true.means), means, col="red") + xlab("average duration of cross protection")
 
 ## summarize model choice
 model.choice <- with(chosen.ests.final, table(param.cats.ordered, model))
-model.choice.sums <- cbind(E=model.choice[,1]+model.choice[,2],
-			   N=model.choice[,3]+model.choice[,4]+model.choice[,5])/500
+model.choice.sums <- cbind(E=rowSums(model.choice[, 1:4]), ## sum the E model cols
+			   N=rowSums(model.choice[, 5:8]))/500 ## model Nd never chosen
 
 ## summarize model choice
 model.choice.sums <- data.frame(model.choice.sums, subparam.cats=subparam.cats.ordered, true.means, true.lambdas.verb)

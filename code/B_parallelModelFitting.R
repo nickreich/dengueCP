@@ -258,6 +258,28 @@ Fd.sum <- TSIR.post.estimation(fixeddur.logliks,
 #dev.off()
 
 
+## FD models for simulating datasets
+## fix delta==1
+Fc.sum.d1 <- TSIR.post.estimation.delta1(fixeddur.logliks, delta.point=1,
+					 k.range=c(0, 90), DF=3,
+					 model.frmla=model.c.formula, ll.col="loglik.Fc",
+					 dat=bkk.dengue.all.cases,
+					 st.date=analysis.start.date,
+					 main="Fixed duration model C log-likelihood surface",
+					 delta.plot.range=c(0,1))
+
+## fix delta==0
+Fc.sum.d0 <- TSIR.post.estimation.delta1(fixeddur.logliks, delta.point=0,
+					 k.range=c(0, 1), DF=3,
+					 model.frmla=model.c.formula, ll.col="loglik.Fc",
+					 dat=bkk.dengue.all.cases,
+					 st.date=analysis.start.date,
+					 main="Fixed duration model C log-likelihood surface",
+					 delta.plot.range=c(0,1))
+
+
+
+
 ###################################
 ## get summaries from EXP models ##
 ###################################
@@ -302,7 +324,7 @@ save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRIN
 ####################################
 
 ## table for main paper
-CP.type <- c("none", "", "", "", "", "fixed duration", "", "", "", "exponential", "", "", "")
+Cp.type <- c("none", "", "", "", "", "fixed duration", "", "", "", "exponential", "", "", "")
 model.name <- c("$N$", "$N_a$", "$N_b$", "$N_c$", "$N_d$", "$F_a$", "$F_b$", "$F_c$", "$F_d$", "$E_a$", "$E_b$", "$E_c$", "$E_d$")
 rep.frac <- c("-", rep("$\\bullet$", 12))
 serotype.trans <- c("-", rep(c("-", "$\\bullet$"), times=6))
@@ -387,6 +409,60 @@ print(xtab, sanitize.text.function=identity, include.rownames=FALSE, caption.pla
 
 
 ##############################################
+## simulate data from best-fitting fd model ##
+##############################################
+
+Nc.sum <- list(bestfit = bestfit.Ncfd,
+	       bestfit.data = get.cross.protect.data(bkk.dengue.all.cases,
+					       case.cols=paste("den.cases.str", 1:4, sep=""),
+					       delta=0,
+					       cr.protect.lag=k,
+					       analysis.start.time=analysis.start.date,
+					       birth.lag=birth.lag,
+					       n.iter=100, tol=1e-5,
+					       smooth=TRUE, n.smooth=1,
+					       df.low=DF, df.high=DF),
+	       delta.mle = 0,
+	       k.mle = 0,
+	       lambda.mle = 0,
+	       alpha1.mle = alpha1.ncfd)
+
+
+tt.n <- simulate.many.TSIR.datasets(nsim=1000, Nc.sum, all.data=bkk.dengue.all.cases)
+
+tt <- simulate.many.TSIR.datasets(nsim=1000, Fc.sum, all.data=bkk.dengue.all.cases)
+
+layout(matrix(1:10, ncol=2))
+ylim <- c(0,120)
+xlim <- c(0, 14)
+only.new.dat <- TRUE
+for(str in 1:4)
+	plot.multiple.spectra(tt.n, tsir.sum=Nc.sum,
+			      all.data=bkk.dengue.all.cases, str=str,
+			      col="red", ylim=ylim, xlim=xlim,
+			      only.new.data=only.new.dat)
+plot.multiple.spectra(tt.n, tsir.sum=Nc.sum,
+		      all.data=bkk.dengue.all.cases, str="all",
+		      only.new.data=only.new.dat, plot.histogram=TRUE,
+		      plot.spectra=FALSE)
+##plot.multiple.spectra(tt.n, tsir.sum=Nc.sum,
+##		      all.data=bkk.dengue.all.cases, str="all",
+##		      col="red", ylim=ylim, xlim=xlim, only.new.data=only.new.dat)
+for(str in 1:4)
+	plot.multiple.spectra(tt, tsir.sum=Fc.sum,
+			      all.data=bkk.dengue.all.cases, str=str,
+			      col="blue", ylim=ylim, xlim=xlim,
+			      only.new.data=only.new.dat)
+##plot.multiple.spectra(tt, tsir.sum=Fc.sum.d1,
+##		      all.data=bkk.dengue.all.cases, str="all",
+##		      col="blue", ylim=ylim, xlim=xlim, only.new.data=only.new.dat)
+plot.multiple.spectra(tt, tsir.sum=Fc.sum,
+		      all.data=bkk.dengue.all.cases, str="all",
+		      only.new.data=only.new.dat, plot.histogram=TRUE,
+		      plot.spectra=FALSE)
+
+
+##############################################
 ## simulate forward for best-fitting models ##
 ##############################################
 
@@ -394,7 +470,7 @@ ny <- seq(40, 150, by=10)
 for(ny in ny){
 tmp <- TSIR.simulate.forward(Ec.sum, model.c.formula, type="exp",
 			     seasonality=TRUE, sim.years=ny,
-			     data.years=25, nskip=26*,
+			     data.years=25, nskip=26*20,
 			     bootstrap=FALSE)
 title(ny)
 }
@@ -404,6 +480,7 @@ tmp <- TSIR.simulate.forward(Ec.sum, model.c.formula, type="exp",
 			     seasonality=TRUE, sim.years=100,
 			     data.years=25, nskip=26*60,
 			     bootstrap=FALSE)
+
 tmp <- TSIR.simulate.forward(Ec.sum, model.c.formula, type="exp",
 			     seasonality=TRUE, sim.years=70,
 			     data.years=25, nskip=26*45,
