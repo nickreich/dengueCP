@@ -1,10 +1,13 @@
 library(xtable)
 library(lattice)
 library(ggplot2)
-library(doSMP)
+library(doMC)
 source("../TSIR_Utils.R")
 load("../../data/bkk.dengue.all.cases.rda")
 
+############
+## set-up ##
+############
 
 ## model formulas
 model.a.formula <- formula(log(It) ~ log(It.minus.1) + Zt.minus.1-1)
@@ -26,9 +29,8 @@ max.iter <- 100
 deltas <- 1
 
 
-## parallel settings
-w1 <- startWorkers(workerCount = 11)
-registerDoSMP(w1)
+## register the parallel backend
+registerDoMC()
 
 ################
 ## EXP models ##
