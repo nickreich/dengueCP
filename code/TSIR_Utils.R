@@ -145,7 +145,8 @@ get.cross.protect.data <- function(dat, case.cols,
 	rhos.final <- curr.rho
 	colnames(rhos.final) <- paste("rho.str", 1:n.strains, sep="")
 	Zt.final <- matrix(NA, ncol=n.strains, nrow=n.obs)
-	for(i in 1:n.strains) Zt.final[,i] <- fits[[i]]$Zt
+	for(i in 1:n.strains) 
+                Zt.final[,i] <- fits[[i]]$Zt
 	colnames(Zt.final) <- paste("zt.str", 1:n.strains, sep="")
 
 	dat.final <- data.frame(tail(dat, n.obs), rhos.final, Zt.final)
@@ -351,7 +352,7 @@ get.TSIR.data <- function(dat,
 	## get autoregressive case counts
 	It.minus.1 <- It.all[fit.subset-1,]
 
-	## get autoregressive residuals
+	## get autoregressive susceptible residuals
 	Zt.minus.1 <- as.matrix(dat[fit.subset-1, zt.cols])
 
 	## get biweeks
@@ -376,7 +377,7 @@ get.TSIR.data <- function(dat,
 				analysis.data[,"It.minus.1"]>0)
 
 	## fit model
-	analysis.subset <- analysis.data[nonzero.subset,]
+	## analysis.subset <- analysis.data[nonzero.subset,]
 
 	return(list(analysis.data=analysis.data,
 		    nonzero.subset=nonzero.subset))

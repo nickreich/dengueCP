@@ -112,7 +112,6 @@ fixeddur.logliks <- cbind(params, fixeddur.lls)
 
 save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRING, ".rda", sep=""))
 
-stopWorkers(w1)
 
 
 ## model N_fd: no cross-protection with and without strain-specific transmission
@@ -278,8 +277,6 @@ Fc.sum.d0 <- TSIR.post.estimation.delta1(fixeddur.logliks, delta.point=0,
 					 st.date=analysis.start.date,
 					 main="Fixed duration model C log-likelihood surface",
 					 delta.plot.range=c(0,1))
-
-
 
 
 ###################################
