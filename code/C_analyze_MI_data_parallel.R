@@ -206,6 +206,17 @@ for(i in 1:n.files) {
 }
 final.loglik.mods <- data.frame(round(AICs, 1), best.mods)
 
+## added for reviewer's benefit, difference between best N and E models
+AIC.diff <- rep(NA, n.files)
+for(i in 1:n.files) {
+        n.mod <- ncol(final.logliks)
+        ## choose best E and N models
+        best.E.idx <- which( AICs[i,6:9] == min(AICs[i,6:9]) )
+        best.N.idx <- which( AICs[i,1:5] == min(AICs[i,1:5]) )
+        AIC.diff[i] <- AICs[i,best.N.idx]-AICs[i,best.E.idx+5]
+}
+summary(AIC.diff[which(key$delta!=365)])
+
 good.idx <- which(final.logliks[,1]<0)
 
 save.image(file=paste("../../data/simulationResults_", DATE.STRING, ".rda", sep=""))

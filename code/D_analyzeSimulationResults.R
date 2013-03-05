@@ -6,8 +6,8 @@ library(ggplot2)
 
 ## starting from scratch
 n.files <- 12000
-chosen.ests.final <- read.csv("../../data/chosenEsts_MIsims5_June2012.csv")
-key <- read.csv("../../data/simulatedData_fromMI/key_5.csv", row.names=1)
+chosen.ests.final <- read.csv("../data/chosenEsts_MIsims5_June2012.csv")
+key <- read.csv("../data/simulatedData_fromMI/key_5.csv", row.names=1)
 true.lambdas <- 1/key[,"delta"]
 
 true.lambdas.verb <- rep("3 years", n.files)

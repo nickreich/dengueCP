@@ -11,22 +11,17 @@ shinyUI(pageWithSidebar(
                         checkboxInput(inputId = "sero4", label = "Serotype 4", value = TRUE)
                 ),
                 
-                ## select which type of graph
-                selectInput(inputId = "chart.type",
-                            label = "Type of graph",
-                            choices = c("Matchstick" = "h",
-                                        "Line" = "l",
-                                        "Points" = "p")
-                )),
-        
-        mainPanel(                
-                 conditionalPanel(condition = "input.sero1",
-                                  plotOutput(outputId = "plot_sero1")),
-                 conditionalPanel(condition = "input.sero2",
-                                  plotOutput(outputId = "plot_sero2")),
-                 conditionalPanel(condition = "input.sero3",
-                                  plotOutput(outputId = "plot_sero3")),
-                 conditionalPanel(condition = "input.sero4",
-                                  plotOutput(outputId = "plot_sero4"))
+                # Specification of range within an interval
+                sliderInput("range", "Range:",
+                            min = 1, max = 1000, value = c(1,500)),
+                
+                # Provide a custom currency format for value display, with basic animation
+                sliderInput("format", "Custom Format:", 
+                            min = 0, max = 10000, value = 0, step = 2500,
+                            format="$#,##0", locale="us", animate=TRUE)
+        ),
+                        
+        mainPanel(
+                  plotOutput(outputId = "plot_cases")
         )
 ))
