@@ -2,7 +2,7 @@ library(xtable)
 library(lattice)
 library(ggplot2)
 library(doMC)
-source("../TSIR_Utils.R")
+source("TSIR_Utils.R")
 load("../../data/bkk.dengue.all.cases.rda")
 
 ############
@@ -53,11 +53,17 @@ ll.store.NbExp <- logLik(bestfit.NbExp)
 
 
 ## parallel loop for exp model fitting
-exp.logliks <- foreach(i = 1:length(lambdas), .combine=rbind) %dopar% {
+delta.grid.size <- 101
+delta.vec <- rep(seq(0,1, length.out=delta.grid.size), each=length(lambdas))
+lambdas.vec <- rep(lambdas, times=delta.grid.size)
+params <- cbind(delta.vec, lambdas.vec)
+
+
+exp.logliks <- foreach(i = 1:nrow(params), .combine=rbind) %dopar% {
 	tmp <- get.cross.protect.data(bkk.dengue.all.cases,
 				      case.cols=paste("den.cases.str", 1:4, sep=""),
-				      delta=deltas, cr.protect.lag=k,
-				      lambda=lambdas[i],
+				      delta=params[i,"delta.vec"], cr.protect.lag=k,
+				      lambda=params[i,"lambdas.vec"],
 				      analysis.start.time=analysis.start.date,
 				      birth.lag=birth.lag,
 				      n.iter=max.iter, tol=1e-5,
