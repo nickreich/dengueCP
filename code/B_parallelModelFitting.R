@@ -75,11 +75,10 @@ exp.logliks <- foreach(i = 1:nrow(params), .combine=rbind) %dopar% {
 	ll.Ec <- logLik(lm(model.c.formula, data=data.frame(analysis.data)))
 	ll.Ed <- logLik(lm(model.d.formula, data=data.frame(analysis.data)))
 	message(paste("round", i, "complete ::", Sys.time()))
-	c(ll.Ea, ll.Eb, ll.Ec, ll.Ed, length(tmp$nonzero.subset))
+	c(params[i,], ll.Ea, ll.Eb, ll.Ec, ll.Ed, length(tmp$nonzero.subset))
 }
 
-rownames(exp.logliks) <- lambdas
-colnames(exp.logliks) <- c("loglik.Ea", "loglik.Eb", "loglik.Ec", "loglik.Ed", "N.fit")
+colnames(exp.logliks) <- c("delta", "lambda", "loglik.Ea", "loglik.Eb", "loglik.Ec", "loglik.Ed", "N.fit")
 
 
 ###########################
@@ -306,8 +305,8 @@ Eb.sum <- TSIR.post.estimation.expmodels(exp.logliks[,"loglik.Eb"],
 #dev.off()
 
 #pdf("../../figures/publicationReady/Exp_C.pdf", height=4.5)
-Ec.sum <- TSIR.post.estimation.expmodels(exp.logliks[,"loglik.Ec"],
-					 lambdas=lambdas, DF=3, k=k, model.name="model E_C",
+Ec.sum <- TSIR.post.estimation.expmodels(exp.logliks, ll.col="loglik.Ec",
+					 DF=3, k=k, model.name="model E_C",
 					 model.formula=model.c.formula,
 					 dat=bkk.dengue.all.cases,
 					 st.date=analysis.start.date)

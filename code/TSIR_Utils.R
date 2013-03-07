@@ -722,45 +722,63 @@ plot.lik.surface.expmodels <- function(ll.store) {
 	return(round(c(mle.lambda/26, lambda.ci.95/26, max.lik),3))
 }
 
-TSIR.post.estimation.expmodels <- function(logliks, lambdas, DF, model.formula,
+TSIR.post.estimation.expmodels <- function(ll.store, ll.col, DF, model.formula,
 					   cor.method="pearson",
 					   dat=bkk.dengue.cases,
 					   st.date, plot.cor=FALSE,
 					   k, model.name,
 					   dat.col.names="den.cases.str"){
-	require(lattice)
+        require(RColorBrewer)
 
 	## calculate MLEs
-	max.lik <- max(logliks, na.rm=TRUE)
-	mle.idx <- which(logliks==max.lik)
-
-	mle.lambda <- lambdas[mle.idx]
+	liks <- ll.store[,ll.col]
+	ll.tmp <- cbind(ll.store, liks=liks)
+	
+	## calculate MLEs
+	max.lik <- max(liks, na.rm=TRUE)
+	mle.idx <- which(liks==max.lik)
+	delta.mle <- ll.tmp[mle.idx,"delta"]
+	lambda.mle <- ll.tmp[mle.idx,"lambda"]
+	N.fit <- ll.tmp[mle.idx, "N.fit"]
+	
+        ## get univariate confidence intervals
 	ci.95.limit <- max.lik - qchisq(.95, 1)/2
 	ci.99.limit <- max.lik - qchisq(.99, 1)/2
-	ci.95.idx <- which(logliks>ci.95.limit)
-	ci.99.idx <- which(logliks>ci.99.limit)
-	lambda.ci.95 <- lambdas[range(ci.95.idx)]
-	lambda.ci.99 <- lambdas[range(ci.99.idx)]
-
+	ci.95.idx <- which(liks>ci.95.limit)
+	ci.99.idx <- which(liks>ci.99.limit)
+	lambda.ci.95 <- range(ll.tmp[ci.95.idx, "lambda"])
+	lambda.ci.99 <- range(ll.tmp[ci.99.idx, "lambda"])
+	delta.ci.95 <- range(ll.tmp[ci.95.idx, "delta"])
+	delta.ci.99 <- range(ll.tmp[ci.99.idx, "delta"])
+	
 	## plot likelihood graph
-	if(plot.cor) par(mfrow=c(1,2))
-	plot(lambdas, logliks, type="l", lwd=2,
-	     xlab="average length of cross protection (in years)",
-	     ylab="log-likelihood", las=1, bty="n", xaxt="n",
-	     main=model.name)
-	max.year <- floor(max(lambdas)/26)
-	axis(1, at=seq(0, max.year*26, by=26), labels=0:max.year)
-	lines(x=rep(mle.lambda,2), y=range(logliks), lty=2)
-	lines(x=lambda.ci.95, y=rep(ci.95.limit, 2), lty=2, col="gray")
-	lines(x=rep(lambda.ci.95[1],2), y=c(min(logliks), ci.95.limit), lty=2, col="gray")
-	lines(x=rep(lambda.ci.95[2],2), y=c(min(logliks), ci.95.limit), lty=2, col="gray")
+        
+	## equation from BolkerBook p217
+	conf.contours <- max.lik-qchisq(c(.90, .95), 2)/2
+	at.levels <- c(Inf, ceiling(max.lik), conf.contours,
+	               ceiling(max.lik) - c(5, 7, 9, 11, 13),
+	               #c(5, 10, 15, 20, 30),
+	               -Inf)
+	lab.ats <- rev(round(at.levels, 1))[-1]
+	cats <- cut(ll.tmp[,"liks"], breaks=at.levels, labels=lab.ats)
+	cats <- factor(cats, levels=rev(levels(cats)))
+	cats1 <- cats
+	#cats1[-idx.to.keep] <- NA
+	
+	dd <- data.frame(ll.tmp, cats1=factor(cats1))
+	pal <- brewer.pal(9, "Blues")[2:9]
+	p <- ggplot(dd, aes(lambda, delta, fill=cats1)) +
+	        theme_bw() + geom_tile() + scale_fill_manual(values=pal, name="log-lik")+
+	        geom_point(x=lambda.mle, y=delta.mle, show_guide=FALSE, shape=3) +
+	        scale_x_continuous("lambda, the duration of cross-protection (in years)", breaks=(0:7)*26, labels=0:7) + scale_y_continuous(expression(delta))
+	print(p)	
 
 	## fit model at MLE
 	bestfit.data <- get.cross.protect.data(dat,
 					       case.cols=paste(dat.col.names, 1:4, sep=""),
-					       delta=1,
+					       delta=delta.mle,
 					       cr.protect.lag=k,
-					       lambda=mle.lambda,
+					       lambda=lambda.mle,
 					       analysis.start.time=st.date,
 					       birth.lag=birth.lag,
 					       n.iter=50, tol=1e-5,
@@ -795,8 +813,10 @@ TSIR.post.estimation.expmodels <- function(logliks, lambdas, DF, model.formula,
 	## return list
 	return(list(bestfit=bestfit,
 		    bestfit.data=bestfit.data,
-		    lambda.mle=mle.lambda/26,
+		    lambda.mle=lambda.mle/26,
 		    lambda.ci.95=lambda.ci.95/26,
+	            delta.mle=delta.mle,
+	            delta.ci.95=delta.ci.95,
 		    alpha1.mle=coef(bestfit)["log(It.minus.1)"],
 		    alpha1.ci.95=alpha1.ci,
 		    corr=spCorr,
