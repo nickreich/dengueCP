@@ -217,7 +217,8 @@ reconstruct.susc.class <- function(cum.cases, cum.births, delta, k,
 			## note the offset "cheat" in model formula
 			fit <- smooth.spline(x=X.cumcases,
 					     y=Y.cumbirths-Q.offset,
-					     df=df[i], tol=tol)
+					     df=df[i], 
+                                             tol=tol)
 			## need to adjust fitted values for offset "cheat"
 			yhat.local <- predict(fit, X.cumcases)$y + Q.offset
 			sse1[i] <- sum((Y.cumbirths-yhat.local)^2)
@@ -241,10 +242,12 @@ reconstruct.susc.class <- function(cum.cases, cum.births, delta, k,
 	if(smooth){
 		Zt <- Zt.local
 		rho.t <- predict(fit, cum.cases, deriv=1)$y
+		rho.t[rho.t<1] <- 1
 		fit <- fit
 	} else {
 		Zt <- Zt.global
 		rho.t <- rep(coef(global.fit)[2], n.obs)
+		rho.t[rho.t<1] <- 1
 		fit <- global.fit
 	}
 
@@ -387,7 +390,7 @@ get.TSIR.data <- function(dat,
 
 TSIR.post.estimation <- function(ll.store, delta.range, k.range,
 				 DF, model.frmla, ll.col, cor.method="pearson",
-				 dat, st.date, plot.cor=FALSE,
+				 dat, st.date, plot.cor=FALSE, smooth=TRUE,
 				 delta.plot.range=c(-1,1), ...){
 	require(lattice)
 
@@ -420,7 +423,7 @@ TSIR.post.estimation <- function(ll.store, delta.range, k.range,
 					       analysis.start.time=st.date,
 					       birth.lag=birth.lag,
 					       n.iter=100, tol=1e-5,
-					       smooth=TRUE, n.smooth=1,
+					       smooth=smooth, n.smooth=1,
 					       df.low=DF, df.high=DF)
 	analysis.data <- bestfit.data$analysis.data[bestfit.data$nonzero.subset,]
 	bestfit <- lm(model.frmla, data=data.frame(analysis.data))
@@ -627,11 +630,16 @@ ggplot.lik.surface <- function(ll.store, ll.col, N.fit, ...) {
 	cats1[-idx.to.keep] <- NA
 
 	dd <- data.frame(ll.tmp, cats1=factor(cats1))
+        k.lim <- max(ll.tmp[,"ks"])
+        k.ticks <- seq(0, k.lim, by=26)
+        k.labels <- k.ticks/26
 	pal <- brewer.pal(9, "Blues")[2:9]
 	p <- ggplot(dd, aes(ks, deltas, fill=cats1)) +
-		theme_bw() + geom_tile() + scale_fill_manual(values=pal, name="log-lik")+
+		theme_bw() + geom_tile() + scale_fill_manual(values=pal, name="log-lik") +
 			geom_point(x=k.mle, y=delta.mle, show_guide=FALSE, shape=3) +
-				scale_x_continuous("k, the duration of cross-protection (in years)", breaks=c(0, 26, 52, 78, 104), labels=0:4) + scale_y_continuous(expression(delta))
+				scale_x_continuous("k, the duration of cross-protection (in years)", 
+                                                   breaks=k.ticks, labels=k.labels) + 
+                scale_y_continuous(expression(delta))
 	print(p)
 }
 
@@ -726,8 +734,9 @@ TSIR.post.estimation.expmodels <- function(ll.store, ll.col, DF, model.formula,
 					   cor.method="pearson",
 					   dat=bkk.dengue.cases,
 					   st.date, plot.cor=FALSE,
-					   k, model.name,
-					   dat.col.names="den.cases.str"){
+					   k, model.name, smooth=TRUE,
+					   dat.col.names="den.cases.str", 
+                                           univariate.ci=TRUE){
         require(RColorBrewer)
 
 	## calculate MLEs
@@ -742,10 +751,17 @@ TSIR.post.estimation.expmodels <- function(ll.store, ll.col, DF, model.formula,
 	N.fit <- ll.tmp[mle.idx, "N.fit"]
 	
         ## get univariate confidence intervals
-	ci.95.limit <- max.lik - qchisq(.95, 1)/2
-	ci.99.limit <- max.lik - qchisq(.99, 1)/2
-	ci.95.idx <- which(liks>ci.95.limit)
-	ci.99.idx <- which(liks>ci.99.limit)
+        if(univariate.ci){
+	        ci.95.limit <- max.lik - qchisq(.95, 1)/2
+	        ci.99.limit <- max.lik - qchisq(.99, 1)/2
+        	ci.95.idx <- which(liks>ci.95.limit & ll.store[,"delta"]==1)
+        	ci.99.idx <- which(liks>ci.99.limit & ll.store[,"delta"]==1)
+        } else {
+                ci.95.limit <- max.lik - qchisq(.95, 2)/2
+                ci.99.limit <- max.lik - qchisq(.99, 2)/2
+                ci.95.idx <- which(liks>ci.95.limit)
+                ci.99.idx <- which(liks>ci.99.limit)                
+        }
 	lambda.ci.95 <- range(ll.tmp[ci.95.idx, "lambda"])
 	lambda.ci.99 <- range(ll.tmp[ci.99.idx, "lambda"])
 	delta.ci.95 <- range(ll.tmp[ci.95.idx, "delta"])
@@ -782,7 +798,7 @@ TSIR.post.estimation.expmodels <- function(ll.store, ll.col, DF, model.formula,
 					       analysis.start.time=st.date,
 					       birth.lag=birth.lag,
 					       n.iter=50, tol=1e-5,
-					       smooth=TRUE, n.smooth=1,
+					       smooth=smooth, n.smooth=1,
 					       df.low=DF, df.high=DF)
 	analysis.data <- bestfit.data$analysis.data[bestfit.data$nonzero.subset,]
 	bestfit <- lm(model.formula, data=data.frame(analysis.data))
@@ -1702,3 +1718,27 @@ plot.lik.surface.old <- function(ll.store,
 	trellis.unfocus()
 
 }
+
+## returns the dataset used to create the analysis dataset
+## sum.obj is an object returned from a TSIR.post.estimation function
+get.dat.final <- function(sum.obj) {
+               sum.obj$bestfit.data$dat.final
+}
+
+## returns a table with reporting rates per 1000
+get.reporting.rates <- function(sum.obj){
+        sum.dat <- get.dat.final(sum.obj)
+
+        rep.rates.str1 <- 1/quantile(sum.dat$rho.str1, c(1, .5, 0))
+        rep.rates.str2 <- 1/quantile(sum.dat$rho.str2, c(1, .5, 0))
+        rep.rates.str3 <- 1/quantile(sum.dat$rho.str3, c(1, .5, 0))
+        rep.rates.str4 <- 1/quantile(sum.dat$rho.str4, c(1, .5, 0))
+
+        ## estimated number of reported cases per 1000 incident cases
+        ## minimum, median and maximum estimates
+        rep.rates <- 1000*rbind(rep.rates.str1, rep.rates.str2, rep.rates.str3, rep.rates.str4)
+        colnames(rep.rates) <- c("minimum", "median", "maximum")
+        message("estimated number of reported cases per 1000 incident cases across entire dataset")
+        return(rep.rates)
+}
+

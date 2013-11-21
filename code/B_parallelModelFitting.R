@@ -2,12 +2,16 @@ library(xtable)
 library(lattice)
 library(ggplot2)
 library(doMC)
+library(reshape2)
+setwd("code/")
 source("TSIR_Utils.R")
 load("../../data/bkk.dengue.all.cases.rda")
 
 ############
 ## set-up ##
 ############
+
+Sys.time()
 
 ## model formulas
 model.a.formula <- formula(log(It) ~ log(It.minus.1) + Zt.minus.1-1)
@@ -16,7 +20,7 @@ model.c.formula <- formula(log(It) ~ factor(biweeks) + log(It.minus.1) + Zt.minu
 model.d.formula <- formula(log(It) ~ factor(biweeks):factor(str)+log(It.minus.1)+Zt.minus.1-1)
 
 DATE.STRING <- format(Sys.time(), "%m%d%Y")
-DF <- 3
+DF <- 2
 birth.lag <- 8
 
 lambda.max <- 7.5 # in years
@@ -35,6 +39,8 @@ registerDoMC()
 ################
 ## EXP models ##
 ################
+
+Sys.time()
 
 ## model N_Exp: no cross-protection with and without strain-specific transmission
 tmp <- get.cross.protect.data(bkk.dengue.all.cases,
@@ -77,8 +83,10 @@ exp.logliks <- foreach(i = 1:nrow(params), .combine=rbind) %dopar% {
 	message(paste("round", i, "complete ::", Sys.time()))
 	c(params[i,], ll.Ea, ll.Eb, ll.Ec, ll.Ed, length(tmp$nonzero.subset))
 }
+Sys.time()
 
 colnames(exp.logliks) <- c("delta", "lambda", "loglik.Ea", "loglik.Eb", "loglik.Ec", "loglik.Ed", "N.fit")
+save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRING, ".rda", sep=""))
 
 
 ###########################
@@ -86,12 +94,15 @@ colnames(exp.logliks) <- c("delta", "lambda", "loglik.Ea", "loglik.Eb", "loglik.
 ###########################
 
 ## parallel loop for fixed duration models
-k.max <- 100
+k.min <- 1
+k.max <- lambda.max*26 #100
 delta.grid.size <- 201
-k.grid.size <- 101
+k.grid.size <- k.max # 101
 delta.vec <- rep(seq(-1,1, length.out=delta.grid.size), each=k.grid.size)
-k.vec <- rep(round(seq(1, k.max, length.out=k.grid.size)), times=delta.grid.size)
+k.vec <- rep(round(seq(k.min, k.max, length.out=k.grid.size)), times=delta.grid.size)
 params <- cbind(delta.vec, k.vec)
+
+Sys.time()
 
 fixeddur.lls <- foreach(i = 1:nrow(params), .combine=rbind) %dopar% {
 	tmp <- get.cross.protect.data(bkk.dengue.all.cases,
@@ -109,11 +120,13 @@ fixeddur.lls <- foreach(i = 1:nrow(params), .combine=rbind) %dopar% {
 	ll.Fc <- logLik(lm(model.c.formula, data=data.frame(analysis.data)))
 	ll.Fd <- logLik(lm(model.d.formula, data=data.frame(analysis.data)))
 	message(paste("round", i, "complete ::", Sys.time()))
-	c(ll.Fa, ll.Fb, ll.Fc, ll.Fd, tmp$eps, tmp$iters, length(tmp$nonzero.subset))
+	c(params[i,], ll.Fa, ll.Fb, ll.Fc, ll.Fd, tmp$eps, tmp$iters, length(tmp$nonzero.subset))
 }
 
-colnames(fixeddur.lls) <- c("loglik.Fa", "loglik.Fb", "loglik.Fc", "loglik.Fd", "eps", "iters", "N.fit")
-fixeddur.logliks <- cbind(params, fixeddur.lls)
+Sys.time()
+
+colnames(fixeddur.lls) <- c("delta.vec", "k.vec", "loglik.Fa", "loglik.Fb", "loglik.Fc", "loglik.Fd", "eps", "iters", "N.fit")
+fixeddur.logliks <- fixeddur.lls
 
 save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRING, ".rda", sep=""))
 
@@ -222,6 +235,9 @@ alpha1.n <- coef(lag1.norm.fit)[2]
 alpha1.n.ci <- confint(lag1.norm.fit)[2,]
 N.fit.N <- length(y.hat)
 
+save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRING, ".rda", sep=""))
+
+
 ##################################
 ## get summaries from FD models ##
 ##################################
@@ -246,10 +262,10 @@ Fb.sum <- TSIR.post.estimation(fixeddur.logliks,
 
 #pdf("../../figures/publicationReady/fixeddur_C.pdf", height=3.5)
 Fc.sum <- TSIR.post.estimation(fixeddur.logliks,
-			       delta.range=c(-.5, .97), k.range=c(0, 100), DF=3,
+			       delta.range=c(0, 1), k.range=c(0, 200), DF=3,
 			       model.frmla=model.c.formula, ll.col="loglik.Fc",
 			       dat=bkk.dengue.all.cases,
-			       st.date=analysis.start.date,
+			       st.date=analysis.start.date, smooth=FALSE,
 			       main="Fixed duration model C log-likelihood surface",
 			       delta.plot.range=c(0,1))
 #dev.off()
@@ -283,22 +299,23 @@ Fc.sum.d0 <- TSIR.post.estimation.delta1(fixeddur.logliks, delta.point=0,
 					 main="Fixed duration model C log-likelihood surface",
 					 delta.plot.range=c(0,1))
 
+save.image(file=paste("../../data/TSIR_maxlam75yr_smooth", DF, "df_", DATE.STRING, ".rda", sep=""))
 
 ###################################
 ## get summaries from EXP models ##
 ###################################
 
 #pdf("../../figures/publicationReady/Exp_A.pdf")
-Ea.sum <- TSIR.post.estimation.expmodels(exp.logliks[,"loglik.Ea"],
-					 lambdas=lambdas, DF=3, k=k, model.name="model E_A",
+Ea.sum <- TSIR.post.estimation.expmodels(exp.logliks, ll.col="loglik.Ea",
+					 DF=3, k=k, model.name="model E_A",
 					 model.formula=model.a.formula,
 					 dat=bkk.dengue.all.cases,
 					 st.date=analysis.start.date)
 #dev.off()
 
 #pdf("../../figures/publicationReady/Exp_B.pdf")
-Eb.sum <- TSIR.post.estimation.expmodels(exp.logliks[,"loglik.Eb"],
-					 lambdas=lambdas, DF=3, k=k, model.name="model E_B",
+Eb.sum <- TSIR.post.estimation.expmodels(exp.logliks, ll.col="loglik.Eb",
+					 DF=3, k=k, model.name="model E_B",
 					 model.formula=model.b.formula,
 					 dat=bkk.dengue.all.cases,
 					 st.date=analysis.start.date)
@@ -313,8 +330,8 @@ Ec.sum <- TSIR.post.estimation.expmodels(exp.logliks, ll.col="loglik.Ec",
 #dev.off()
 
 #pdf("../../figures/publicationReady/Exp_D.pdf")
-Ed.sum <- TSIR.post.estimation.expmodels(exp.logliks[,"loglik.Ed"],
-					 lambdas=lambdas, DF=3, k=k, model.name="model E_D",
+Ed.sum <- TSIR.post.estimation.expmodels(exp.logliks, ll.col="loglik.Ed",
+					 DF=3, k=k, model.name="model E_D",
 					 model.formula=model.d.formula,
 					 dat=bkk.dengue.all.cases,
 					 st.date=analysis.start.date)
@@ -413,6 +430,18 @@ print(xtab, sanitize.text.function=identity, include.rownames=FALSE, caption.pla
 
 
 ##############################################
+## create table with reporting rates        ##
+##############################################
+
+## exponential model
+rr.Ec <- get.reporting.rates(Ec.sum)
+
+## fixed duration model
+rr.Fc <- get.reporting.rates(Fc.sum)
+
+xtable(rbind(rr.Fc, rr.Fc))
+
+##############################################
 ## simulate data from best-fitting fd model ##
 ##############################################
 
@@ -436,6 +465,21 @@ tt.n <- simulate.many.TSIR.datasets(nsim=1000, Nc.sum, all.data=bkk.dengue.all.c
 
 tt <- simulate.many.TSIR.datasets(nsim=1000, Fc.sum, all.data=bkk.dengue.all.cases)
 
+## plot datasets
+par(mfrow=c(4,1), mar=c(2,1,1,1))
+tmp.col <- rgb(t(col2rgb("blue"))/255, alpha=.01)
+plot.idx <- which(bkk.dengue.all.cases$date == analysis.start.date):nrow(bkk.dengue.all.cases)
+for(j in 1:4){
+        str.col <- paste0("den.cases.str", j)
+        str.col2 <- paste0("I", j)
+        plot(bkk.dengue.all.cases[plot.idx,"date"], bkk.dengue.all.cases[plot.idx,str.col], type="l", ylim=c(0,80), col="red", lwd=2)
+        for(i in 1:1000){
+                points(bkk.dengue.all.cases[plot.idx,"date"], tt[plot.idx,str.col2,i], type="l", col=tmp.col)
+        }
+        points(bkk.dengue.all.cases[plot.idx,"date"], bkk.dengue.all.cases[plot.idx,str.col], type="l", col="red", lwd=2)
+}
+
+## plot spectra
 layout(matrix(1:10, ncol=2))
 ylim <- c(0,120)
 xlim <- c(0, 14)

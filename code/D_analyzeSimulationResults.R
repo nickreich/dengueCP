@@ -7,7 +7,7 @@ library(ggplot2)
 ## starting from scratch
 n.files <- 12000
 chosen.ests.final <- read.csv("../data/chosenEsts_MIsims5_June2012.csv")
-key <- read.csv("../data/simulatedData_fromMI/key_5.csv", row.names=1)
+key <- read.csv("../../data/simulatedData_fromMI/key_5.csv", row.names=1)
 true.lambdas <- 1/key[,"delta"]
 
 true.lambdas.verb <- rep("3 years", n.files)
@@ -153,3 +153,27 @@ qplot(x=true.means, y=pct.avg.bias, data=all.results, geom="line", group=subpara
 qplot(x=true.means, y=avg.bias, data=all.results, geom="line", group=subparam.cats, colour=enh, lty=rr) + theme_bw() + xlab("average duration of cross-protection") + ylab("average bias")
 
 qplot(x=true.means, y=ci.coverage, data=all.results, geom="line", group=subparam.cats, colour=enh, lty=rr) + theme_bw() + xlab("average duration of cross-protection") + ylab("95% CI coverage") + geom_hline(aes(yintercept=.95), col="gray60", lty=2) + ylim(.5, 1)
+
+
+#######
+## look at a few models and how we estimate the reporting rates
+idx.1 <- which(key[,"chi"]==1 & key[,"rho"]==.01 & key[,"delta"]==1/2)
+rr.1 <- chosen.ests[idx.1,5:8]
+median(1/rr.1)
+boxplot(1/rr.1)
+
+idx.2 <- which(key[,"chi"]==1 & key[,"rho"]==.1 & key[,"delta"]==1/2)
+rr.2 <- chosen.ests[idx.2,5:8]
+median(1/rr.2)
+
+idx.3 <- which(key[,"chi"]==1.4 & key[,"rho"]==.1 & key[,"delta"]==1/2)
+rr.3 <- chosen.ests[idx.3,5:8]
+median(1/rr.3)
+
+idx.4 <- which(key[,"chi"]==1.4 & key[,"rho"]==.01 & key[,"delta"]==1/2)
+rr.4 <- chosen.ests[idx.4,5:8]
+median(1/rr.4)
+
+## look at mean rr's by parameter categories
+rr <- aggregate(chosen.ests.final[,6:9], by=list(param.cats.ordered), FUN=function(x) mean(1/x))
+

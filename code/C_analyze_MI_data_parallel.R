@@ -6,7 +6,7 @@ source("../TSIR_Utils.R")
 
 
 n.files <- 12000
-filenames <- paste("../../data/simulatedData_fromMI/simdata_5_local/simdata",1:n.files,".csv", sep="")
+filenames <- paste("../data/simulatedData_fromMI/simdata_5_local/simdata",1:n.files,".csv", sep="")
 
 ## calculate births for each dataset
 BIRTHS.PER.YEAR <- 10000000*.02 ## = yearly number of births
@@ -228,9 +228,17 @@ colnames(chosen.ests) <- c("lambda", "lam.ci.l", "lam.ci.u", "loglik",
 			   "rho1", "rho2", "rho3", "rho4")
 correctModel.ests <- chosen.ests ## estimates from the "correct" model
 lik.cut <- qchisq(.95, df=1)/2
+filenames <- paste("~/Documents/work/dengueData/simdata_5_local/simdata",1:n.files,".csv", sep="")
 
 for(j in 1:n.files){
-	## get estimates from "chosen" model by chi-square tests
+        filename <- filenames[j]
+        dat <- read.csv(filename, row.names=1)        
+        ## tie all data together
+        new.dat <- cbind(biweek=c(rep(1:26, times=40), 1),
+                         date=new.dates,
+                         dat,
+                         births=births)
+        ## get estimates from "chosen" model by chi-square tests
 	max.lik.chosen <- final.logliks[j, best.idx[j]]
 	chosen.ests[j,"loglik"] <- max.lik.chosen
 	if (best.idx[j]<6){
@@ -273,11 +281,12 @@ for(j in 1:n.files){
 				      smooth=FALSE, n.smooth=1,
 				      df.low=DF, df.high=DF)
 	correctModel.ests[j,c("rho1", "rho2", "rho3", "rho4")] <- tmp$curr.rho[1,]
+        if(j%%100==0) message(paste("dataset", j, "complete ::", Sys.time()))        
 }
 chosen.ests.final <- data.frame(model=best.mods, chosen.ests)
 
-write.csv(chosen.ests.final, file="../../data/chosenEsts_MIsims5_June2012.csv", row.names=F)
-write.csv(correctModel.ests, file="../../data/correctEsts_MIsims5_June2012.csv", row.names=F)
+write.csv(chosen.ests.final, file="../data/chosenEsts_MIsims5_June2012_updated.csv", row.names=F)
+write.csv(correctModel.ests, file="../data/correctEsts_MIsims5_June2012_updated.csv", row.names=F)
 
 
 ## ENDED HERE
