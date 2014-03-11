@@ -38,7 +38,7 @@ get.cross.protect.data <- function(dat, case.cols,
                                    n.iter=10, tol=1e-5,
                                    smooth=TRUE, n.smooth=10,
                                    df.low=1000, df.high=5000) {
-  ## check to make sure we have early enough data
+  ##cc check to make sure we have early enough data
   idx.start.date <- which(dat[,"date"]==analysis.start.time)
   
   for ( i in 1:4){
