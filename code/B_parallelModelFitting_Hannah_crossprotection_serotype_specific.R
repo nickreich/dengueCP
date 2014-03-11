@@ -22,7 +22,7 @@ n.strains<-4
 
 
 ############
-## set-up ##
+## aset-up ##
 ############
 
 Sys.time()
